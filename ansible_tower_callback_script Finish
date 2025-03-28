@@ -1,0 +1,39 @@
+<%#
+kind: finish
+name: Ansible Tower Callback - Finish Template
+model: ProvisioningTemplate
+oses:
+  - CentOS
+  - Rocky
+  - RHEL
+description: 
+  This script triggers an Ansible job via AWX/Tower after Foreman provisioning is complete.
+%>
+
+#!/bin/sh
+set -e  # Exit immediately if a command exits with a non-zero status
+
+echo "$(date) - Calling Ansible AWX/Tower provisioning callback..."
+
+CALLBACK_URL="https://<%= host_param('ansible_tower_fqdn') %>/api/v2/job_templates/<%= host_param('ansible_job_template_id') %>/callback/"
+HOST_CONFIG_KEY="<%= host_param('ansible_host_config_key') %>"
+
+if [ -z "$HOST_CONFIG_KEY" ]; then
+  echo "ERROR: ansible_host_config_key is missing. Exiting."
+  exit 1
+fi
+
+if [ -n "<%= host_param('ansible_extra_vars') %>" ]; then
+  PAYLOAD="{\"host_config_key\":\"$HOST_CONFIG_KEY\", \"extra_vars\": <%= host_param('ansible_extra_vars') %>}"
+else
+  PAYLOAD="host_config_key=$HOST_CONFIG_KEY"
+fi
+
+RESPONSE=$(/usr/bin/curl -s -o /tmp/aap_callback_response -w "%{http_code}" -k -H 'Content-Type: application/json' --data "$PAYLOAD" "$CALLBACK_URL")
+
+if [ "$RESPONSE" -ne 200 ]; then
+  echo "ERROR: Ansible Tower/AAP callback failed with HTTP status $RESPONSE. Check /tmp/aap_callback_response for details."
+  exit 1
+fi
+
+echo "$(date) - Ansible Tower callback completed successfully."
