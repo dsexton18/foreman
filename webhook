@@ -1,0 +1,63 @@
+
+
+{
+  "event": "host_created",
+  "host": {
+    "name": "<%= @host.name %>",
+    "ip": "<%= @host.ip %>",
+    "mac": "<%= @host.mac %>",
+    "operatingsystem": "<%= @host.operatingsystem.name %>",
+    "environment": "<%= @host.environment.name %>"
+    // Add other relevant host details
+  }
+}
+
+
+
+{
+  "X-Webhook-Payload": {
+    "event": "host_created",
+    "host": {
+      "name": "<%= @host.name %>",
+      "ip": "<%= @host.ip %>",
+      "mac": "<%= @host.mac %>",
+      "operatingsystem": "<%= @host.operatingsystem.name %>",
+      "environment": "<%= @host.environment.name %>"
+      // Add other relevant host details
+    }
+  },
+  "X-Gitlab-Token": "your_gitlab_token_here"
+}
+
+test
+{
+  "event": "test",
+  "message": "Hello from Foreman Test"
+}
+
+curl -X POST \
+     -H "Content-Type: application/json" \
+     -H "X-Gitlab-Token: your_gitlab_token_here" \
+     -d '{"event": "test", "message": "Hello from Foreman"}' \
+     https://your-aap.example.com/api/v2/webhook/gitlab/
+
+
+
+{
+  "event": "host_created",
+  "host": {
+    "name": "<%= @host.name %>",
+    "ip": "<%= @host.ip %>",
+    "mac": "<%= @host.mac %>",
+    "operatingsystem": "<%= @host.operatingsystem.name %>",
+    "environment": "<%= @host.environment.name %>",
+    "foreman_id": "<%= @host.id %>",
+    "organization": "<%= @host.organization.name %>",
+    "domain": "<%= @host.domain.name %>",
+    "model": "<%= @host.model.name %>",
+    "architecture": "<%= @host.architecture.name %>",
+    "hostgroup": "<%= @host.hostgroup.name %>",
+    "parameters": <%= @host.parameters.to_json %>
+    // Add other relevant host details
+  }
+}
