@@ -1,0 +1,159 @@
+
+Here's how you can add the script using Image Builder:
+
+1. Create the Script:
+
+First, ensure you have the signal_foreman_cloudinit_done.sh script ready. It should contain the logic to call the Foreman API, as discussed previously. Make it executable (chmod +x signal_foreman_cloudinit_done.sh).
+
+2. Add the Script to the Image Builder Blueprint:
+
+You'll need to modify the blueprint you're using to build your RHEL image. Here's how to do it:
+
+    Using osbuild-composer CLI:
+        Add a files section: In your blueprint, you'll use the files section to copy the script into the image.
+        Specify the path and content: You'll specify the destination path (/opt/signal_foreman_cloudinit_done.sh) and either the content of the script directly in the blueprint or the path to the script on your local machine.
+
+    Example Blueprint Snippet:
+    YAML
+
+name: my-rhel-image
+description: RHEL image with Cloud-Init signal script
+version: 1.0.0
+modules:
+  - name: cloud-init
+files:
+  - path: /opt/signal_foreman_cloudinit_done.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      sleep 30
+
+      API_USER="cloudinit_user"
+      API_TOKEN="your_foreman_api_token"
+      FOREMAN_HOST="your-foreman.example.com"
+      HOSTNAME=$(hostname)
+
+      curl -X PUT \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -H "X-Auth-Username: $API_USER" \
+        -H "X-Auth-Token: $API_TOKEN" \
+        -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
+        "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
+
+    Or, if the script is in a file:
+
+YAML
+
+    name: my-rhel-image
+    description: RHEL image with Cloud-Init signal script
+    version: 1.0.0
+    modules:
+      - name: cloud-init
+    files:
+      - path: /opt/signal_foreman_cloudinit_done.sh
+        mode: "0755"
+        source: /path/to/your/signal_foreman_cloudinit_done.sh
+
+    Using the Image Builder Web UI (if available):
+        The web UI will have options to upload or add files to your blueprint. Look for a section similar to "Files" or "Custom Files".
+        Add your script and specify the destination path and permissions.
+
+3. Modify the Cloud-Init Configuration (within the Blueprint):
+
+You'll need to add the cloud_final_modules section to your blueprint to tell Cloud-Init to run the script.
+YAML
+
+name: my-rhel-image
+description: RHEL image with Cloud-Init signal script
+version: 1.0.0
+modules:
+  - name: cloud-init
+    config:
+      cloud_final_modules:
+        - scripts-user
+files:
+  - path: /opt/signal_foreman_cloudinit_done.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      sleep 30
+
+      API_USER="cloudinit_user"
+      API_TOKEN="your_foreman_api_token"
+      FOREMAN_HOST="your-foreman.example.com"
+      HOSTNAME=$(hostname)
+
+      curl -X PUT \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -H "X-Auth-Username: $API_USER" \
+        -H "X-Auth-Token: $API_TOKEN" \
+        -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
+        "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
+
+4. Build the Image:
+
+Use osbuild-composer or the web UI to build the image from your modified blueprint.
+
+Important Considerations:
+
+    API Credentials: Be extremely careful about how you manage and store the API credentials (API_USER, API_TOKEN). Avoid hardcoding them directly into the script if possible. Consider using environment variables or a secure configuration management system.
+    Networking: Ensure that the VM will have network connectivity to your Foreman server during the Cloud-Init final stage.
+    Error Handling: Add robust error handling to your script, including checking the exit code of curl and logging any errors.
+    Testing: Thoroughly test the image and the script to ensure it works as expected.
+
+By adding the script to your Image Builder blueprint, you ensure that every VM created from that image will automatically run the script to signal Foreman upon Cloud-Init completion. This provides a reliable and consistent way to trigger your AAP automation.
+
+
+
+
+-----
+add the modules: - name: cloud-init config: cloud_final_modules: - scripts-user section directly to your Image Builder blueprint.
+
+Here's a recap and explanation of how it works:
+
+Understanding the cloud-init Module in Image Builder:
+
+    Purpose: The cloud-init module in Image Builder allows you to customize the Cloud-Init configuration that will be included in your built image.
+    config Subsections: Within the cloud-init module, you can specify various Cloud-Init directives using the config subsection.
+    cloud_final_modules Directive: This specific directive controls the modules that Cloud-Init will run during its final stage, which is the very last stage of Cloud-Init's execution.
+
+Why it Works in the Blueprint:
+
+    Image Builder's Cloud-Init Integration: Image Builder is designed to integrate seamlessly with Cloud-Init. By including the cloud-init module in your blueprint, you're telling Image Builder to configure Cloud-Init within the image.
+    Direct Configuration: The config subsection allows you to directly specify Cloud-Init directives, such as cloud_final_modules, as if you were editing the cloud.cfg file inside the image.
+
+Example Blueprint with cloud_final_modules:
+YAML
+
+
+-----
+name: my-rhel-image
+description: RHEL image with Cloud-Init signal script
+version: 1.0.0
+modules:
+  - name: cloud-init
+    config:
+      cloud_final_modules:
+        - scripts-user
+files:
+  - path: /opt/signal_foreman_cloudinit_done.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      sleep 30
+
+      API_USER="cloudinit_user"
+      API_TOKEN="your_foreman_api_token"
+      FOREMAN_HOST="your-foreman.example.com"
+      HOSTNAME=$(hostname)
+
+      curl -X PUT \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -H "X-Auth-Username: $API_USER" \
+        -H "X-Auth-Token: $API_TOKEN" \
+        -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
+        "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
+
