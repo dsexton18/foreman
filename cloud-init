@@ -157,3 +157,92 @@ files:
         -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
         "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
 
+
+
+
+#cloud-config
+
+# Ensure scripts-user is in cloud_final_modules (check your /etc/cloud/cloud.cfg)
+# cloud_final_modules:
+#  - scripts-user
+#  - ... other modules ...
+
+write_files:
+  - path: /opt/signal_foreman_cloudinit_done.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      sleep 30
+
+      API_USER="cloudinit_user"
+      API_TOKEN="your_foreman_api_token"
+      FOREMAN_HOST="your-foreman.example.com"
+      HOSTNAME=$(hostname)
+
+      curl -X PUT \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -H "X-Auth-Username: $API_USER" \
+        -H "X-Auth-Token: $API_TOKEN" \
+        -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
+        "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
+
+cloud_final_modules:
+  - scripts-user
+
+
+
+#!/bin/bash
+# Wait for a bit to ensure things are settled (adjust as needed)
+sleep 30
+
+API_USER="cloudinit_user"
+API_TOKEN="your_foreman_api_token"
+FOREMAN_HOST="your-foreman.example.com"
+HOSTNAME=$(hostname)
+
+curl -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Auth-Username: $API_USER" \
+  -H "X-Auth-Token: $API_TOKEN" \
+  -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}
+
+
+
+#!/bin/bash
+sleep 30
+
+API_USER="cloudinit_user"
+FOREMAN_HOST="your-foreman.example.com"
+HOSTNAME=$(hostname -f) # Use FQDN for reliable identification
+
+# Retrieve the Foreman API token using foreman-cli
+API_TOKEN=$(foreman fapi --api-version 2 --username "$API_USER" host "$HOSTNAME" | jq -r '.parameters.foreman_api_token')
+
+if [ -z "$API_TOKEN" ]; then
+  echo "Error: Foreman API token not found for host $HOSTNAME"
+  exit 1
+fi
+
+echo "Retrieved API Token: $API_TOKEN (for verification - remove in production)"
+
+curl -X PUT \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Auth-Username: $API_USER" \
+  -H "X-Auth-Token: $API_TOKEN" \
+  -d "{\"fact\": {\"name\": \"cloud_init_status\", \"value\": \"success\"}}" \
+  "https://$FOREMAN_HOST/api/hosts/$HOSTNAME/facts"
+
+if [ $? -ne 0 ]; then
+  echo "Error updating Foreman facts"
+  exit 1
+fi
+
+echo "Successfully signaled Foreman"
+
+
+packages:
+  - foreman-client
+  - jq
