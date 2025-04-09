@@ -17,7 +17,9 @@
       delegate_to: hostb
       remote_user: foo_user
 
-rsync -av roo@example1.example.coom:/var/lib/pulp/ /tmp/test/
+rsync -av foo_user@example1.example.com:/var/lib/pulp/ /tmp/test/
+
+rsync -av -e "ssh" --rsync-path="sudo rsync" foo_user@example1.example.com:/var/lib/pulp/ /tmp/test/
 
 ---
 - name: Sync from foreman to target using synchronize
