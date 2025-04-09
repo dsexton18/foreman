@@ -23,7 +23,7 @@ rsync -av -e "ssh" --rsync-path="sudo rsync" foo_user@example1.example.com:/var/
 
 ---
 - name: Sync from foreman to target using synchronize
-  hosts: examplea.example.com
+  hosts: dest.example.com
   become: true
   gather_facts: false
 
@@ -37,4 +37,23 @@ rsync -av -e "ssh" --rsync-path="sudo rsync" foo_user@example1.example.com:/var/
           - "--archive"
           - "--compress"
           - "--verbose"
-      delegate_to: exampleb.example.com
+      delegate_to: source.example.com
+
+push
+
+- name: Sync from Foreman to hostb using synchronize module
+  hosts: servera
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Push /var/lib/pulp to hostb:/var/lib/pulp
+      ansible.posix.synchronize:
+        src: /var/lib/pulp/
+        dest: /var/lib/pulp/
+        mode: push
+        dest_port: 22
+        rsync_opts:
+          - "-az"  # archive and compress options combined
+      delegate_to: hostb
+      ansible_user: foo_user  # Use ansible_user instead of remote_user
