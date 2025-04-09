@@ -1,0 +1,38 @@
+---
+- name: Sync from Foreman to  using synchronize module
+  hosts: servera
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Push /var/lib/pulp to hostb:/var/lib/pulp
+      ansible.posix.synchronize:
+        src: /var/lib/pulp/
+        dest: /var/lib/pulp/
+        mode: push
+        dest_port: 22
+        rsync_opts: 
+          - "--archive"
+          - "--compress"
+      delegate_to: hostb
+      remote_user: foo_user
+
+rsync -av roo@example1.example.coom:/var/lib/pulp/ /tmp/test/
+
+---
+- name: Sync from foreman to target using synchronize
+  hosts: examplea.example.com
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Synchronize pulp data to target host
+      ansible.posix.synchronize:
+        src: /var/lib/pulp/
+        dest: /var/lib/pulp/
+        mode: push
+        rsync_opts:
+          - "--archive"
+          - "--compress"
+          - "--verbose"
+      delegate_to: exampleb.example.com
