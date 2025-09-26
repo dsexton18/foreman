@@ -1,0 +1,45 @@
+---
+- name: Trigger AAP inventory sync
+  hosts: localhost
+  gather_facts: no
+  vars:
+    aap_url: "https://aap.example.com/api/v2"
+    inventory_id: 5                # Replace with your AAP inventory ID
+    token: "YOUR_AAP_TOKEN"        # Replace with your token
+    trigger_fact: "{{ host.parameters.TRIGGER_AAP_SYNC | default('true') }}"
+
+  tasks:
+    - name: Check if host should trigger AAP sync
+      debug:
+        msg: "Skipping AAP sync because trigger fact is false."
+      when: trigger_fact != "true"
+
+    - name: Trigger AAP inventory sync
+      uri:
+        url: "{{ aap_url }}/inventories/{{ inventory_id }}/sync/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ token }}"
+          Content-Type: "application/json"
+        body_format: json
+        status_code: 202
+      when: trigger_fact == "true"
+
+
+custom_facts:
+  TRIGGER_AAP_SYNC: "true"
+
+after_create” hook:
+
+SATELLITE_URL="https://satellite.example.com"
+TOKEN="YOUR_SATELLITE_API_TOKEN"
+HOSTGROUP_ID=10        # Replace with your host group ID
+JOB_TEMPLATE_ID=42     # Replace with your Job Template ID
+
+curl -k -X POST "$SATELLITE_URL/api/host_groups/$HOSTGROUP_ID/lifecycle_hooks" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $TOKEN" \
+     -d '{
+           "job_template_id": '"$JOB_TEMPLATE_ID"',
+           "invocation": "after_create"
+         }'
