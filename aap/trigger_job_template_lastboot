@@ -1,0 +1,161 @@
+
+<%# 
+kind: snippet
+name: trigger_aap_workflow_postboot
+model: ProvisioningTemplate
+snippet: true
+description: >
+  Installs a systemd timer and script to trigger an AAP workflow template
+  once after the final provisioning boot.
+-%>
+
+#cloud-config
+
+write_files:
+  - path: /usr/local/bin/trigger_aap_workflow.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      MARKER_FILE="/var/local/aap_workflow_done"
+
+      if [ ! -f "$MARKER_FILE" ]; then
+          CALLBACK_URL="https://aap.example.com/api/v2/job_templates/<JOB_TEMPLATE_ID>/callback/<CALLBACK_TOKEN>/"
+          HOSTNAME=$(hostname)
+
+          curl -s -X POST "$CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{\"host\": \"$HOSTNAME\"}" \
+              >> /var/log/aap-workflow.log 2>&1
+
+          touch "$MARKER_FILE"
+      fi
+
+  - path: /etc/systemd/system/aap-workflow-trigger.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Trigger AAP Workflow Template
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/trigger_aap_workflow.sh
+
+  - path: /etc/systemd/system/aap-workflow-trigger.timer
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Timer to trigger AAP Workflow Template after final provisioning boot
+
+      [Timer]
+      OnBootSec=10min
+      Unit=aap-workflow-trigger.service
+      Persistent=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, aap-work]()
+-------
+
+
+
+<%# 
+kind: snippet
+name: trigger_aap_workflow_postboot
+model: ProvisioningTemplate
+snippet: true
+description: >
+  Installs a systemd timer and script to trigger an AAP workflow template
+  once after the final provisioning boot, with configurable retries and timer disable on success.
+-%>
+
+<%# Parameters: %>
+<%# workflow_job_id: ID of the AAP job template to trigger %>
+<%# callback_token: Callback token for the job template %>
+<%# retry_interval: seconds between retry attempts (default 300 = 5min) %>
+<%# max_retries: number of attempts before giving up (default 12) %>
+
+#cloud-config
+
+write_files:
+  - path: /usr/local/bin/trigger_aap_workflow.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      MARKER_FILE="/var/local/aap_workflow_done"
+      RETRY_INTERVAL=${retry_interval:-300}   # Default 5 minutes
+      MAX_RETRIES=${max_retries:-12}         # Default 1 hour total
+
+      if [ ! -f "$MARKER_FILE" ]; then
+          CALLBACK_URL="https://aap.example.com/api/v2/job_templates/<%= @workflow_job_id %>/callback/<%= @callback_token %>/"
+          HOSTNAME=$(hostname)
+          RETRIES=0
+
+          while [ $RETRIES -lt $MAX_RETRIES ]; do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CALLBACK_URL" \
+                           -H "Content-Type: application/json" \
+                           -d "{\"host\": \"$HOSTNAME\"}" )
+
+              if [ "$HTTP_CODE" -eq 201 ]; then
+                  echo "$(date): Callback succeeded" >> /var/log/aap-workflow.log
+                  # Mark success and disable timer
+                  touch "$MARKER_FILE"
+                  systemctl disable --now aap-workflow-trigger.timer
+                  exit 0
+              else
+                  echo "$(date): Callback failed with HTTP $HTTP_CODE, retrying in $RETRY_INTERVAL seconds" >> /var/log/aap-workflow.log
+                  sleep $RETRY_INTERVAL
+                  RETRIES=$((RETRIES+1))
+              fi
+          done
+
+          echo "$(date): Max retries reached, callback failed" >> /var/log/aap-workflow.log
+      fi
+
+  - path: /etc/systemd/system/aap-workflow-trigger.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Trigger AAP Workflow Template
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/trigger_aap_workflow.sh
+
+  - path: /etc/systemd/system/aap-workflow-trigger.timer
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Timer to trigger AAP Workflow Template after final provisioning boot
+
+      [Timer]
+      OnBootSec=10min
+      Unit=aap-workflow-trigger.service
+      Persistent=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, aap-workflow-trigger.timer]
+  - [systemctl, start, aap-workflow-trigger.timer]
+
+
+
+workflow_job_id	—	ID of the job template to trigger
+callback_token	—	Callback token from AAP
+retry_interval	300	Seconds between retries
+max_retries	12	Number of retry attempts
