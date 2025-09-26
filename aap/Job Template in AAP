@@ -1,0 +1,40 @@
+---
+- name: Launch Workflow Template
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Trigger workflow template
+      uri:
+        url: "https://aap.example.com/api/v2/workflow_job_templates/{{ workflow_id }}/launch/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ api_token }}"
+          Content-Type: "application/json"
+        body: >
+          {
+            "extra_vars": {
+              "host_name": "{{ inventory_hostname }}"
+            }
+          }
+        body_format: json
+        status_code: 201
+
+
+cloud-init script
+#!/bin/bash
+# /usr/local/bin/trigger_aap_workflow.sh
+
+CALLBACK_URL="https://aap.example.com/api/v2/job_templates/<JOB_TEMPLATE_ID>/callback/<CALLBACK_TOKEN>/"
+HOSTNAME=$(hostname)
+
+# Trigger the kickoff job via callback
+curl -s -X POST "$CALLBACK_URL" \
+     -H "Content-Type: application/json" \
+     -d "{\"host\": \"$HOSTNAME\"}" \
+     >> /var/log/cloud-init-aap.log 2>&1
+
+
+Cloud-Init YAML
+#cloud-config
+runcmd:
+  - ["/usr/local/bin/trigger_aap_workflow.sh"]
