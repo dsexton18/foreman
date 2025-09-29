@@ -1,4 +1,7 @@
-
+             curl -k -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer xxxx" \
+  https://foo.como/api/v2/inventory_sources/17/update/
 
 {
   "event": "host_created",
