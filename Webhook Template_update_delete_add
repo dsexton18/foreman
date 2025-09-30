@@ -1,0 +1,67 @@
+{
+  "event": "<%= event %>",
+  "hostname": "<%= object['name'] %>",
+  "hostgroup": "<%= object['hostgroup_name'] %>",
+  "ip": "<%= object['ip'] rescue '' %>",
+  "inventory_source_id": 17
+}
+
+
+
+{
+  "event": "<%= event %>",
+  "hostname": "<%= object['name'] %>",
+  "hostgroup": "<%= object['hostgroup_name'] %>",
+  "ip": "<%= object['ip'] rescue '' %>",
+  "fqdn": "<%= object['fqdn'] rescue '' %>",
+  "os": "<%= object['operatingsystem_name'] rescue '' %>",
+  "architecture": "<%= object['architecture_name'] rescue '' %>",
+  "inventory_source_id": 17
+}
+
+
+add audit log
+{
+  "event": "<%= event %>",
+  "hostname": "<%= object['name'] %>",
+  "hostgroup": "<%= object['hostgroup_name'] %>",
+  "ip": "<%= object['ip'] rescue '' %>",
+  "fqdn": "<%= object['fqdn'] rescue '' %>",
+  "os": "<%= object['operatingsystem_name'] rescue '' %>",
+  "architecture": "<%= object['architecture_name'] rescue '' %>",
+  "inventory_source_id": 17,
+  "audit": {
+    "triggered_by": "<%= user ? user.login : 'system' %>",
+    "timestamp": "<%= Time.now.utc.iso8601 %>"
+  }
+}
+
+---------------
+
+
+object['parameters']
+Includes all host/hostgroup parameters automatically.
+Hidden or sensitive values (like aap_token) can stay hidden in Foreman but still be sent securely in the body.
+Audit Section
+triggered_by → user who triggered the event, or "system".
+timestamp → UTC timestamp in ISO8601 format.
+Rescue clauses
+Ensure missing attributes don’t cause 500 errors.
+Static Authorization header (in Additional HTTP Headers):
+
+
+{
+  "event": "<%= event %>",
+  "hostname": "<%= object['name'] %>",
+  "hostgroup": "<%= object['hostgroup_name'] %>",
+  "ip": "<%= object['ip'] rescue '' %>",
+  "fqdn": "<%= object['fqdn'] rescue '' %>",
+  "os": "<%= object['operatingsystem_name'] rescue '' %>",
+  "architecture": "<%= object['architecture_name'] rescue '' %>",
+  "inventory_source_id": 17,
+  "audit": {
+    "triggered_by": "<%= user ? user.login : 'system' %>",
+    "timestamp": "<%= Time.now.utc.iso8601 %>"
+  },
+  "parameters": <%= object['parameters'].to_json rescue '{}' %>
+}
