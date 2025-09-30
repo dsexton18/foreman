@@ -1,0 +1,109 @@
+Input form survey in aap 
+hostname	text	Required
+domain	text	Optional (or default to your domain)
+hostgroup	choice	Drop-down of Foreman hostgroups
+environment	choice	Drop-down of Foreman environments
+operating_system	choice	Drop-down of supported OSs
+interfaces	text (JSON)	e.g., [{"name":"eth0","mac":"AA:BB:CC:DD:EE:FF","ip":"192.168.1.101"}]
+custom_facts	text (YAML/JSON)	Optional key/value pairs for facts
+
+
+
+---
+- name: Create Foreman host from survey
+  hosts: localhost
+  gather_facts: no
+  vars:
+    foreman_url: "https://foreman.example.com"
+    foreman_user: "admin"
+    foreman_pass: "changeme"
+
+  tasks:
+
+    - name: Create host in Foreman
+      theforeman.foreman.host:
+        username: "{{ foreman_user }}"
+        password: "{{ foreman_pass }}"
+        server_url: "{{ foreman_url }}"
+        state: present
+        host:
+          name: "{{ hostname }}"
+          hostgroup: "{{ hostgroup }}"
+          environment: "{{ environment }}"
+          domain: "{{ domain }}"
+          operatingsystem: "{{ operating_system }}"
+          interfaces_attributes: "{{ interfaces | from_json }}"
+          parameters_attributes: >-
+            {{ custom_facts | default('{}') | from_yaml | dict2items | map('combine', {'name': 'item.key', 'value': 'item.value'}) | list }}
+
+      register: host_result
+
+    - name: Show result
+      debug:
+        var: host_result
+
+
+----
+---
+- name: Gather Foreman inventory data
+  hosts: localhost
+  gather_facts: no
+  vars:
+    foreman_url: "https://foreman.example.com"
+    foreman_user: "admin"
+    foreman_pass: "changeme"
+
+  tasks:
+    - name: Get Hostgroups
+      uri:
+        url: "{{ foreman_url }}/api/hostgroups"
+        method: GET
+        user: "{{ foreman_user }}"
+        password: "{{ foreman_pass }}"
+        force_basic_auth: yes
+        return_content: yes
+        validate_certs: no
+      register: hostgroups_response
+
+    - name: Parse hostgroup names
+      set_fact:
+        hostgroups_list: "{{ hostgroups_response.json.results | map(attribute='name') | list }}"
+
+    - name: Get Environments
+      uri:
+        url: "{{ foreman_url }}/api/environments"
+        method: GET
+        user: "{{ foreman_user }}"
+        password: "{{ foreman_pass }}"
+        force_basic_auth: yes
+        return_content: yes
+        validate_certs: no
+      register: environments_response
+
+    - name: Parse environment names
+      set_fact:
+        environments_list: "{{ environments_response.json.results | map(attribute='name') | list }}"
+
+    - name: Get Domains
+      uri:
+        url: "{{ foreman_url }}/api/domains"
+        method: GET
+        user: "{{ foreman_user }}"
+        password: "{{ foreman_pass }}"
+        force_basic_auth: yes
+        return_content: yes
+        validate_certs: no
+      register: domains_response
+
+    - name: Parse domain names
+      set_fact:
+        domains_list: "{{ domains_response.json.results | map(attribute='name') | list }}"
+
+    - name: Set workflow variables for survey
+      set_fact:
+        foreman_survey_choices:
+          hostgroups: "{{ hostgroups_list }}"
+          environments: "{{ environments_list }}"
+          domains: "{{ domains_list }}"
+
+
